@@ -8,11 +8,20 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// Strings is string slice, can be varchar,text or json in mysql column
-type Strings []string
+// Set is a string set, can be varchar,text or json array in mysql column
+type Set []string
+
+// NewSet init a set from items
+func NewSet(items ...string) Set {
+	var s = Set(make([]string, 0))
+	for _, item := range items {
+		s = s.Add(item)
+	}
+	return s
+}
 
 // String print strings as json format: ["a","b"]
-func (t Strings) String() string {
+func (t Set) String() string {
 	if t == nil {
 		return ""
 	}
@@ -21,7 +30,7 @@ func (t Strings) String() string {
 }
 
 // Has a item or not
-func (t Strings) Has(s string) bool {
+func (t Set) Has(s string) bool {
 	for _, item := range t {
 		if item == s {
 			return true
@@ -30,8 +39,8 @@ func (t Strings) Has(s string) bool {
 	return false
 }
 
-// Has another strings or not
-func (t Strings) Contains(s Strings) bool {
+// IsSuperSet of s or not
+func (t Set) IsSuperSet(s Set) bool {
 	for _, ss := range s {
 		if !t.Has(ss) {
 			return false
@@ -40,27 +49,37 @@ func (t Strings) Contains(s Strings) bool {
 	return true
 }
 
-// Intersect another strings or not
-func (t Strings) Intersect(s Strings) bool {
-	for _, ss := range s {
-		if t.Has(ss) {
-			return true
+// IsSubSet of s or not
+func (t Set) IsSubSet(s Set) bool {
+	for _, tt := range t {
+		if !s.Has(tt) {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
-// SAdd add an item to set t and return the new set
-func (t Strings) SAdd(s string) Strings {
+// IsDisjoint returns whether two sets have a intersection(false) or not(true)
+func (t Set) IsDisjoint(s Set) bool {
+	for _, ss := range s {
+		if t.Has(ss) {
+			return false
+		}
+	}
+	return true
+}
+
+// Add an item to set t and return the new set
+func (t Set) Add(s string) Set {
 	if t.Has(s) {
 		return t
 	}
 	return append(t, s)
 }
 
-// Remove the items if it's value is s
-func (t Strings) Remove(s string) Strings {
-	tmp := make(Strings, 0, len(t))
+// Remove the specified item and return the new set
+func (t Set) Remove(s string) Set {
+	tmp := make(Set, 0, len(t))
 	for _, tt := range t {
 		if tt != s {
 			tmp = append(tmp, tt)
@@ -70,16 +89,16 @@ func (t Strings) Remove(s string) Strings {
 }
 
 // Union two strings
-func (t Strings) Union(s Strings) Strings {
+func (t Set) Union(s Set) Set {
 	tmp := t
 	for _, ss := range s {
-		tmp = tmp.SAdd(ss)
+		tmp = tmp.Add(ss)
 	}
 	return tmp
 }
 
 // Sub s from t and return the new strings
-func (t Strings) Sub(s Strings) Strings {
+func (t Set) Sub(s Set) Set {
 	tmp := t
 	for _, ss := range s {
 		tmp = tmp.Remove(ss)
@@ -88,7 +107,7 @@ func (t Strings) Sub(s Strings) Strings {
 }
 
 // MarshalJSON for json interface
-func (t Strings) MarshalJSON() ([]byte, error) {
+func (t Set) MarshalJSON() ([]byte, error) {
 	if t == nil {
 		return []byte("[]"), nil
 	}
@@ -96,7 +115,7 @@ func (t Strings) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON for json interface
-func (t *Strings) UnmarshalJSON(data []byte) error {
+func (t *Set) UnmarshalJSON(data []byte) error {
 	var tmp []string
 	if err := json.Unmarshal(data, &tmp); err != nil {
 		return err
@@ -106,7 +125,7 @@ func (t *Strings) UnmarshalJSON(data []byte) error {
 }
 
 // MarshalYAML for yaml interface
-func (t Strings) MarshalYAML() ([]byte, error) {
+func (t Set) MarshalYAML() ([]byte, error) {
 	if t == nil {
 		return []byte{}, nil
 	}
@@ -114,7 +133,7 @@ func (t Strings) MarshalYAML() ([]byte, error) {
 }
 
 // UnmarshalYAML for yaml interface
-func (t *Strings) UnmarshalYAML(data []byte) error {
+func (t *Set) UnmarshalYAML(data []byte) error {
 	var tmp []string
 	if err := yaml.Unmarshal(data, &tmp); err != nil {
 		return err
@@ -124,7 +143,7 @@ func (t *Strings) UnmarshalYAML(data []byte) error {
 }
 
 // Scan implements the Scanner interface.
-func (t *Strings) Scan(src interface{}) error {
+func (t *Set) Scan(src interface{}) error {
 	*t = make([]string, 0)
 	if src == nil {
 		return nil
@@ -140,7 +159,7 @@ func (t *Strings) Scan(src interface{}) error {
 }
 
 // Value implements the driver Valuer interface.
-func (t Strings) Value() (driver.Value, error) {
+func (t Set) Value() (driver.Value, error) {
 	if t == nil {
 		return nil, nil
 	}
