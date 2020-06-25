@@ -4,8 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
-
-	"gopkg.in/yaml.v2"
+	"fmt"
 )
 
 // Set is a string set, can be varchar,text or json array in mysql column
@@ -20,7 +19,7 @@ func NewSet(items ...string) Set {
 	return s
 }
 
-// String print strings as json format: ["a","b"]
+// String print strings as json format: ["a","b"], use this method in printing only
 func (t Set) String() string {
 	if t == nil {
 		return ""
@@ -106,42 +105,6 @@ func (t Set) Sub(s Set) Set {
 	return tmp
 }
 
-// MarshalJSON for json interface
-func (t Set) MarshalJSON() ([]byte, error) {
-	if t == nil {
-		return []byte("[]"), nil
-	}
-	return json.Marshal([]string(t))
-}
-
-// UnmarshalJSON for json interface
-func (t *Set) UnmarshalJSON(data []byte) error {
-	var tmp []string
-	if err := json.Unmarshal(data, &tmp); err != nil {
-		return err
-	}
-	*t = tmp
-	return nil
-}
-
-// MarshalYAML for yaml interface
-func (t Set) MarshalYAML() ([]byte, error) {
-	if t == nil {
-		return []byte{}, nil
-	}
-	return yaml.Marshal([]string(t))
-}
-
-// UnmarshalYAML for yaml interface
-func (t *Set) UnmarshalYAML(data []byte) error {
-	var tmp []string
-	if err := yaml.Unmarshal(data, &tmp); err != nil {
-		return err
-	}
-	*t = tmp
-	return nil
-}
-
 // Scan implements the Scanner interface.
 func (t *Set) Scan(src interface{}) error {
 	*t = make([]string, 0)
@@ -155,7 +118,7 @@ func (t *Set) Scan(src interface{}) error {
 	if len(tmp) == 0 {
 		return nil
 	}
-	return t.UnmarshalJSON(tmp)
+	return json.Unmarshal(tmp, t)
 }
 
 // Value implements the driver Valuer interface.
@@ -163,5 +126,9 @@ func (t Set) Value() (driver.Value, error) {
 	if t == nil {
 		return nil, nil
 	}
-	return t.String(), nil
+	tmp, err := json.Marshal([]string(t))
+	if err != nil {
+		return nil, fmt.Errorf("save json to db error: %w", err)
+	}
+	return string(tmp), nil
 }
